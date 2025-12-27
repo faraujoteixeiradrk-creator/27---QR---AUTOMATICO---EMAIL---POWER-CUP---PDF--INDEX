@@ -6308,33 +6308,44 @@
             const num = (n, d=2) => new Intl.NumberFormat('es-ES', { minimumFractionDigits: d, maximumFractionDigits: d }).format(n || 0);
             const numPriceFormula = (n) => new Intl.NumberFormat('es-ES', { minimumFractionDigits: 6, maximumFractionDigits: 6 }).format(n || 0);
             
+            const HEADER_BLUE = '#6B7D8E';
+            const DRK_BLUE = '#0ea5e9';
             const GREEN_SAVE = '#16a34a';
             const RED_CTA = '#DC2626';
             const SLATE_DARK = '#475569';
             const SLATE_MED = '#64748b';
-            const SLATE_LIGHT = '#cbd5e1';
             
             const clientName = document.getElementById('client-name-input').value.trim() || '[NOMBRE COMPLETO CLIENTE]';
             
-            // Calcular ahorros totales
             const ahorroFijo = res.savings;
             const ahorroIndexado = res.indexedTotals ? res.indexedTotals.savings : 0;
             
-            // Función para generar una columna de desglose detallado (FIJO o INDEXADO)
-            function generarColumnaDesglose(supply, isIndexed) {
+            let facturaActualTotal = 0;
+            let nuevoCosteAnualFijo = 0;
+            let nuevoCosteAnualIndexado = 0;
+            
+            res.individualResults.forEach(supply => {
+                facturaActualTotal += supply.originalBillAnnual || 0;
+                nuevoCosteAnualFijo += supply.totalAnnual || 0;
+                if (supply.indexedComparison) {
+                    nuevoCosteAnualIndexado += supply.indexedComparison.totalAnnual || 0;
+                }
+            });
+            
+            function generarColumnaDesglosePro(supply, isIndexed) {
                 const data = isIndexed ? supply.indexedComparison : supply;
                 if (!data || !data.powerCosts || !data.energyCosts) return '';
                 
-                const nombreComercializadora = data.offer.name || 'DRK';
-                const nombreTarifa = data.offer.description || data.offer.name;
-                const nombreCompleto = `${nombreComercializadora} - ${nombreTarifa}`;
+                const nombreTarifa = isIndexed ? 
+                    `DRK INDEX - ${data.offer.name || 'DRK INDEX 4 2026'}` : 
+                    `DRK - ${data.offer.name || 'DRK FIJO 6 META 4'}`;
                 
                 let htmlPotencia = '';
-                data.powerCosts.forEach(p => {
+                data.powerCosts.forEach((p, idx) => {
                     if (p.kw > 0) {
                         htmlPotencia += `
-                            <div style="display: flex; justify-content: space-between; font-size: 10px; padding: 3px 0; color: #374151;">
-                                <span>P${p.period}: (${num(p.kw, 2)} kW x ${numPriceFormula(p.priceDay)} €/kW/día)</span>
+                            <div style="display: flex; justify-content: space-between; padding: 4px 0; font-size: 10px; color: #374151;">
+                                <span>P${idx+1}: (${num(p.kw, 2)} kW x ${numPriceFormula(p.priceDay)} €/kW/día)</span>
                                 <span style="font-weight: bold;">${num(p.cost, 2)} €</span>
                             </div>
                         `;
@@ -6342,16 +6353,16 @@
                 });
                 
                 let htmlEnergia = '';
-                data.energyCosts.forEach(e => {
+                data.energyCosts.forEach((e, idx) => {
                     if (e.kwh > 0) {
-                        let label = `E${e.period}`;
+                        let label = `E${idx+1}`;
                         if (supply.originalTariffType === '2.0TD') {
-                            if (e.period === 1) label += ' (Punta)';
-                            else if (e.period === 2) label += ' (Llano)';
-                            else if (e.period === 3) label += ' (Valle)';
+                            if (idx === 0) label += ' (Punta)';
+                            else if (idx === 1) label += ' (Llano)';
+                            else if (idx === 2) label += ' (Valle)';
                         }
                         htmlEnergia += `
-                            <div style="display: flex; justify-content: space-between; font-size: 10px; padding: 3px 0; color: #374151;">
+                            <div style="display: flex; justify-content: space-between; padding: 4px 0; font-size: 10px; color: #374151;">
                                 <span>${label}: (${num(e.kwh, 0)} kWh x ${numPriceFormula(e.price)} €/kWh)</span>
                                 <span style="font-weight: bold;">${num(e.cost, 2)} €</span>
                             </div>
@@ -6359,57 +6370,65 @@
                     }
                 });
                 
+                let preciosPotenciaHtml = '';
+                data.powerCosts.forEach((p, idx) => {
+                    preciosPotenciaHtml += `<div style="font-size: 9px;">P${idx+1}: ${numPriceFormula(p.priceDay)} €/kW/día</div>`;
+                });
+                
+                let preciosEnergiaHtml = '';
+                data.energyCosts.forEach((e, idx) => {
+                    preciosEnergiaHtml += `<div style="font-size: 9px;">E${idx+1}: ${numPriceFormula(e.price)} €/kWh</div>`;
+                });
+                
                 return `
-                    <!-- Cabecera GRIS -->
-                    <div style="background-color: ${SLATE_DARK}; color: white; padding: 10px; border-radius: 6px 6px 0 0;">
-                        <div style="font-size: 11px; font-weight: bold;">[${data.cups}]</div>
-                        <div style="font-size: 9px; margin-top: 2px;">Tipo: ${data.originalTariffType} | Días: ${data.dias_facturados}</div>
-                        <div style="font-size: 9px; margin-top: 4px;">${nombreCompleto}</div>
-                    </div>
-                    
-                    <!-- PRECIOS APLICADOS -->
-                    <div style="background-color: ${SLATE_MED}; color: white; padding: 8px; margin-top: 1px;">
-                        <div style="font-size: 10px; font-weight: bold;">PRECIOS APLICADOS:</div>
-                    </div>
-                    
-                    <div style="background-color: ${SLATE_MED}; color: white; padding: 8px; margin-top: 1px; font-size: 9px;">
-                        <div><strong>POTENCIA:</strong></div>
-                        ${data.powerCosts.map((p, i) => `<div>P${i+1}: ${numPriceFormula(p.priceDay)} €/kW/día</div>`).join('')}
-                        <div style="margin-top: 4px;"><strong>ENERGÍA:</strong></div>
-                        ${data.energyCosts.map((e, i) => `<div>E${i+1}: ${numPriceFormula(e.price)} €/kWh</div>`).join('')}
-                    </div>
-                    
-                    <!-- POTENCIA -->
-                    <div style="background-color: ${SLATE_MED}; color: white; padding: 6px; margin-top: 8px; font-size: 10px; font-weight: bold;">
-                        POTENCIA
-                    </div>
-                    <div style="padding: 8px; background-color: #f8fafc;">
-                        ${htmlPotencia}
-                    </div>
-                    
-                    <!-- ENERGÍA -->
-                    <div style="background-color: ${SLATE_MED}; color: white; padding: 6px; margin-top: 4px; font-size: 10px; font-weight: bold;">
-                        ENERGÍA
-                    </div>
-                    <div style="padding: 8px; background-color: #f8fafc;">
-                        ${htmlEnergia}
-                    </div>
-                    
-                    <!-- TOTAL -->
-                    <div style="background-color: ${SLATE_DARK}; color: white; padding: 10px; margin-top: 8px; display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-size: 11px; font-weight: bold;">TOTAL (${data.dias_facturados} DÍAS)</span>
-                        <span style="font-size: 12px; font-weight: bold;">${eur(data.totalPeriod)}</span>
-                    </div>
-                    
-                    <!-- AHORRO -->
-                    <div style="background-color: ${RED_CTA}; color: white; padding: 10px; margin-top: 6px; text-align: center; border-radius: 6px;">
-                        <div style="font-size: 10px; font-weight: bold;">AHORRO:</div>
-                        <div style="font-size: 16px; font-weight: bold; margin-top: 3px;">${eur(data.savings)}</div>
+                    <div style="border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; background-color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.07);">
+                        <div style="background-color: ${SLATE_DARK}; color: white; padding: 12px; border-radius: 12px 12px 0 0;">
+                            <div style="font-size: 10px; font-weight: bold; margin-bottom: 3px;">[${data.cups}]</div>
+                            <div style="font-size: 9px; opacity: 0.9;">Tipo: ${data.originalTariffType} | Días: ${data.dias_facturados}</div>
+                            <div style="font-size: 9px; margin-top: 4px; opacity: 0.95;">${nombreTarifa}</div>
+                        </div>
+                        
+                        <div style="background-color: ${SLATE_MED}; color: white; padding: 10px;">
+                            <div style="font-size: 10px; font-weight: bold; margin-bottom: 5px;">PRECIOS APLICADOS:</div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                                <div>
+                                    <div style="font-size: 9px; font-weight: bold; margin-bottom: 3px;">POTENCIA:</div>
+                                    ${preciosPotenciaHtml}
+                                </div>
+                                <div>
+                                    <div style="font-size: 9px; font-weight: bold; margin-bottom: 3px;">ENERGÍA:</div>
+                                    ${preciosEnergiaHtml}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="background-color: ${SLATE_MED}; color: white; padding: 8px; margin-top: 1px; font-size: 10px; font-weight: bold;">
+                            POTENCIA
+                        </div>
+                        <div style="padding: 10px; background-color: #f8fafc;">
+                            ${htmlPotencia}
+                        </div>
+                        
+                        <div style="background-color: ${SLATE_MED}; color: white; padding: 8px; margin-top: 6px; font-size: 10px; font-weight: bold;">
+                            ENERGÍA
+                        </div>
+                        <div style="padding: 10px; background-color: #f8fafc;">
+                            ${htmlEnergia}
+                        </div>
+                        
+                        <div style="background-color: ${SLATE_DARK}; color: white; padding: 12px; display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+                            <span style="font-size: 11px; font-weight: bold;">TOTAL (${data.dias_facturados} DÍAS)</span>
+                            <span style="font-size: 13px; font-weight: bold;">${eur(data.totalPeriod)}</span>
+                        </div>
+                        
+                        <div style="background-color: ${RED_CTA}; color: white; padding: 12px; text-align: center; border-radius: 0 0 12px 12px;">
+                            <div style="font-size: 10px; font-weight: bold; margin-bottom: 3px;">AHORRO:</div>
+                            <div style="font-size: 18px; font-weight: bold;">${eur(data.savings)}</div>
+                        </div>
                     </div>
                 `;
             }
             
-            // Generar HTML del desarrollo detallado por cada suministro
             let desarrolloDetalladoHtml = '';
             res.individualResults.forEach((supply, idx) => {
                 const tieneIndexado = supply.indexedComparison && 
@@ -6418,86 +6437,222 @@
                 
                 if (tieneIndexado) {
                     desarrolloDetalladoHtml += `
-                        <!-- Título del Suministro -->
-                        <div style="background-color: ${SLATE_DARK}; color: white; padding: 8px; margin: 30px 0 10px 0; border-radius: 6px;">
-                            <div style="font-size: 12px; font-weight: bold;">SUMINISTRO ${idx + 1}</div>
+                        <div style="background-color: ${HEADER_BLUE}; color: white; padding: 12px 20px; margin: 25px 0 15px 0; border-radius: 12px; text-align: center;">
+                            <div style="font-size: 14px; font-weight: bold; letter-spacing: 1px;">DESARROLLO DETALLADO - SUMINISTRO ${idx + 1} DE ${res.individualResults.length}</div>
                         </div>
                         
-                        <!-- Dos columnas lado a lado -->
-                        <div style="display: flex; gap: 15px; margin-bottom: 20px;">
-                            <div style="flex: 1;">
-                                ${generarColumnaDesglose(supply, false)}
-                            </div>
-                            <div style="flex: 1;">
-                                ${generarColumnaDesglose(supply, true)}
-                            </div>
-                        </div>
+                        <table cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 30px;">
+                            <tr>
+                                <td style="width: 48%; vertical-align: top; padding-right: 10px;">
+                                    ${generarColumnaDesglosePro(supply, false)}
+                                </td>
+                                <td style="width: 4%;"></td>
+                                <td style="width: 48%; vertical-align: top; padding-left: 10px;">
+                                    ${generarColumnaDesglosePro(supply, true)}
+                                </td>
+                            </tr>
+                        </table>
                     `;
                 }
             });
             
+            let resumenTablaFijoHtml = '';
+            let resumenTablaIndexadoHtml = '';
+            
+            res.individualResults.forEach((supply, idx) => {
+                const ahorroFijoSupply = supply.savings || 0;
+                const ahorroIndexadoSupply = supply.indexedComparison ? supply.indexedComparison.savings : 0;
+                
+                resumenTablaFijoHtml += `
+                    <tr style="background-color: ${idx % 2 === 0 ? '#ffffff' : '#f9fafb'};">
+                        <td style="padding: 8px; font-size: 11px; border-bottom: 1px solid #e5e7eb;">${supply.cups}</td>
+                        <td style="padding: 8px; font-size: 11px; border-bottom: 1px solid #e5e7eb;">DRK</td>
+                        <td style="padding: 8px; font-size: 12px; font-weight: bold; text-align: right; border-bottom: 1px solid #e5e7eb; color: ${GREEN_SAVE};">${eur(ahorroFijoSupply)}</td>
+                    </tr>
+                `;
+                
+                resumenTablaIndexadoHtml += `
+                    <tr style="background-color: ${idx % 2 === 0 ? '#ffffff' : '#f9fafb'};">
+                        <td style="padding: 8px; font-size: 11px; border-bottom: 1px solid #e5e7eb;">${supply.cups}</td>
+                        <td style="padding: 8px; font-size: 11px; border-bottom: 1px solid #e5e7eb;">DRK INDEX</td>
+                        <td style="padding: 8px; font-size: 12px; font-weight: bold; text-align: right; border-bottom: 1px solid #e5e7eb; color: ${GREEN_SAVE};">${eur(ahorroIndexadoSupply)}</td>
+                    </tr>
+                `;
+            });
+            
             return `
-                <div style="max-width: 900px; margin: 0 auto; font-family: Arial, sans-serif; background-color: white;">
+                <div style="max-width: 900px; margin: 0 auto; font-family: Arial, sans-serif; background-color: #f8f9fa; padding: 20px;">
                     
-                    <!-- Banner Superior -->
-                    <div style="background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); padding: 30px 20px; text-align: center; border-radius: 20px 20px 0 0;">
-                        <h1 style="color: white; font-size: 18px; font-weight: bold; margin: 0 0 5px 0; letter-spacing: 1px;">
-                            MULTICUPS: COMPARACIÓN FIJO VS INDEXADO
-                        </h1>
-                        <h2 style="color: white; font-size: 42px; font-weight: bold; margin: 0; letter-spacing: 2px;">
-                            DRK ENERGÍA
-                        </h2>
-                        <p style="color: white; font-size: 14px; margin: 10px 0 0 0;">
-                            Total: ${res.cups} Suministros
-                        </p>
+                    <table cellpadding="0" cellspacing="0" width="100%" style="background: linear-gradient(135deg, ${HEADER_BLUE} 0%, #8B9AA8 100%); border-radius: 16px 16px 0 0; margin-bottom: 0;">
+                        <tr>
+                            <td style="padding: 25px 30px;">
+                                <table cellpadding="0" cellspacing="0" width="100%">
+                                    <tr>
+                                        <td style="vertical-align: middle; width: 60%;">
+                                            <div style="background-color: white; width: 50px; height: 50px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 10px;">
+                                                <span style="font-size: 24px;">⚡</span>
+                                            </div>
+                                            <h1 style="color: white; font-size: 16px; margin: 0 0 5px 0; font-weight: normal; letter-spacing: 0.5px;">
+                                                ${brand.NAME.toUpperCase()}
+                                            </h1>
+                                            <p style="color: rgba(255,255,255,0.9); font-size: 11px; margin: 0;">Liderando el ahorro y la eficiencia energética.</p>
+                                        </td>
+                                        <td style="text-align: right; vertical-align: middle; width: 40%;">
+                                            <p style="color: rgba(255,255,255,0.7); font-size: 9px; margin: 0 0 5px 0; text-transform: uppercase; font-weight: bold;">MULTICUPS</p>
+                                            <p style="color: white; font-size: 12px; margin: 0; font-weight: bold;">FIJO VS INDEXADO</p>
+                                            <p style="color: rgba(255,255,255,0.9); font-size: 10px; margin: 5px 0 0 0;">Total: ${res.cups} CUPS</p>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
+                    
+                    <div style="background-color: white; padding: 15px 30px; border-bottom: 2px solid #e5e7eb;">
+                        <p style="margin: 0; font-size: 12px; color: #374151;"><strong>CLIENTE:</strong> ${clientName}</p>
+                        <p style="margin: 5px 0 0 0; font-size: 11px; color: #6b7280;">CUPS TOTALES: ${res.cups} CUPS</p>
                     </div>
                     
-                    <!-- Ahorros Totales -->
-                    <div style="display: flex; gap: 15px; padding: 20px; background-color: #f8f9fa;">
-                        <div style="flex: 1; background-color: #e0f2fe; border: 2px solid #0284c7; border-radius: 12px; padding: 20px; text-align: center;">
-                            <p style="margin: 0 0 10px 0; font-size: 12px; font-weight: 600; color: #0284c7; text-transform: uppercase;">
-                                💼 AHORRO TOTAL CON TARIFAS FIJAS
-                            </p>
-                            <p style="margin: 0; font-size: 36px; font-weight: bold; color: ${GREEN_SAVE};">
-                                ${eur(ahorroFijo)}
-                            </p>
-                            <p style="margin: 10px 0 0 0; font-size: 11px; color: #6b7280;">
-                                Ahorro anual estimado
+                    <div style="background-color: white; padding: 30px; border-radius: 0 0 16px 16px; margin-bottom: 20px;">
+                        <div style="background-color: ${HEADER_BLUE}; color: white; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 25px;">
+                            <p style="margin: 0 0 8px 0; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; opacity: 0.9;">LA MEJOR OPCIÓN PARA TI ES</p>
+                            <h2 style="margin: 0; font-size: 32px; font-weight: bold;">DRK</h2>
+                            <p style="margin: 8px 0 0 0; font-size: 12px; opacity: 0.95;">Ofrece el mayor ahorro consolidado con DRK ENERGÍA.</p>
+                        </div>
+                        
+                        <table cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 20px;">
+                            <tr>
+                                <td style="width: 30%; vertical-align: top; text-align: center; padding: 0 10px;">
+                                    <div style="padding: 15px; border-right: 1px solid #e5e7eb;">
+                                        <p style="margin: 0 0 8px 0; font-size: 10px; color: #6b7280; font-weight: 600; text-transform: uppercase;">TU FACTURA ACTUAL</p>
+                                        <div style="margin: 10px 0;">
+                                            <p style="margin: 0; font-size: 24px; font-weight: bold; color: ${RED_CTA}; text-decoration: line-through;">${eur(facturaActualTotal)}</p>
+                                            <p style="margin: 3px 0 0 0; font-size: 9px; color: #9ca3af;">Total Periodo</p>
+                                        </div>
+                                        <div style="margin-top: 12px;">
+                                            <p style="margin: 0; font-size: 20px; font-weight: bold; color: ${RED_CTA}; text-decoration: line-through;">${eur(facturaActualTotal)}/año</p>
+                                        </div>
+                                    </div>
+                                </td>
+                                
+                                <td style="width: 35%; vertical-align: top; text-align: center; padding: 0 10px;">
+                                    <div style="background-color: ${DRK_BLUE}; color: white; padding: 10px 8px; border-radius: 8px 8px 0 0;">
+                                        <p style="margin: 0; font-size: 9px; font-weight: bold; text-transform: uppercase;">TU AHORRO ANUAL FIJO</p>
+                                    </div>
+                                    <div style="padding: 15px 10px;">
+                                        <p style="margin: 0; font-size: 32px; font-weight: bold; color: ${GREEN_SAVE};">${eur(ahorroFijo)}</p>
+                                        <div style="margin: 15px 0 0 0;">
+                                            <p style="margin: 0 0 3px 0; font-size: 10px; color: #6b7280; font-weight: 600;">TU NUEVO COSTE DRK</p>
+                                            <p style="margin: 0; font-size: 22px; font-weight: bold; color: ${DRK_BLUE};">${eur(nuevoCosteAnualFijo / 12)}/mes</p>
+                                            <p style="margin: 3px 0 0 0; font-size: 8px; color: #9ca3af;">Estimado Mensual</p>
+                                            <p style="margin: 10px 0 0 0; font-size: 20px; font-weight: bold; color: ${DRK_BLUE};">${eur(nuevoCosteAnualFijo)}/año</p>
+                                        </div>
+                                    </div>
+                                </td>
+                                
+                                <td style="width: 35%; vertical-align: top; text-align: center; padding: 0 10px;">
+                                    <div style="background-color: ${GREEN_SAVE}; color: white; padding: 10px 8px; border-radius: 8px 8px 0 0;">
+                                        <p style="margin: 0; font-size: 9px; font-weight: bold; text-transform: uppercase;">TU AHORRO ANUAL INDEXADO</p>
+                                    </div>
+                                    <div style="padding: 15px 10px;">
+                                        <p style="margin: 0; font-size: 32px; font-weight: bold; color: ${GREEN_SAVE};">${eur(ahorroIndexado)}</p>
+                                        <div style="margin: 15px 0 0 0;">
+                                            <p style="margin: 0 0 3px 0; font-size: 10px; color: #6b7280; font-weight: 600;">TU NUEVO COSTE DRK</p>
+                                            <p style="margin: 0; font-size: 22px; font-weight: bold; color: ${GREEN_SAVE};">${eur(nuevoCosteAnualIndexado / 12)}/mes</p>
+                                            <p style="margin: 3px 0 0 0; font-size: 8px; color: #9ca3af;">Estimado Mensual</p>
+                                            <p style="margin: 10px 0 0 0; font-size: 20px; font-weight: bold; color: ${GREEN_SAVE};">${eur(nuevoCosteAnualIndexado)}/año</p>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        </table>
+                        
+                        <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px 15px; margin: 20px 0; border-radius: 6px;">
+                            <p style="margin: 0; font-size: 11px; color: #92400e; line-height: 1.5;">
+                                <strong>⚠️ IMPORTANTE:</strong> A continuación encontrarás el desglose detallado de cálculos para cada suministro, mostrando los desgloses completos de costes tanto para tarifas fijas como indexadas.
                             </p>
                         </div>
-                        <div style="flex: 1; background-color: #f0fdf4; border: 2px solid ${GREEN_SAVE}; border-radius: 12px; padding: 20px; text-align: center;">
-                            <p style="margin: 0 0 10px 0; font-size: 12px; font-weight: 600; color: ${GREEN_SAVE}; text-transform: uppercase;">
-                                ⚡ AHORRO TOTAL CON TARIFAS INDEXADAS
-                            </p>
-                            <p style="margin: 0; font-size: 36px; font-weight: bold; color: ${GREEN_SAVE};">
-                                ${eur(ahorroIndexado)}
-                            </p>
-                            <p style="margin: 10px 0 0 0; font-size: 11px; color: #6b7280;">
-                                Ahorro anual estimado
-                            </p>
-                        </div>
                     </div>
                     
-                    <!-- TÍTULO: DESGLOSE DETALLADO POR SUMINISTRO -->
-                    <div style="background-color: ${GREEN_SAVE}; color: white; padding: 12px 20px; margin: 20px; border-radius: 8px; text-align: center;">
-                        <h2 style="margin: 0; font-size: 16px; font-weight: bold; letter-spacing: 0.5px;">
-                            DESGLOSE DETALLADO POR SUMINISTRO
-                        </h2>
+                    ${desarrolloDetalladoHtml}
+                    
+                    <div style="background-color: ${HEADER_BLUE}; color: white; padding: 12px 20px; margin: 30px 0 15px 0; border-radius: 12px; text-align: center;">
+                        <h2 style="margin: 0; font-size: 16px; font-weight: bold; letter-spacing: 0.5px;">RESUMEN DE TODOS LOS SUMINISTROS</h2>
                     </div>
                     
-                    <!-- Desarrollo Detallado de cada suministro -->
-                    <div style="padding: 0 20px;">
-                        ${desarrolloDetalladoHtml}
+                    <table cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 30px; background-color: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.07);">
+                        <tr>
+                            <td style="width: 48%; vertical-align: top; padding: 20px;">
+                                <div style="background-color: ${HEADER_BLUE}; color: white; padding: 10px; border-radius: 8px; text-align: center; margin-bottom: 15px;">
+                                    <h3 style="margin: 0; font-size: 13px; font-weight: bold;">TARIFAS FIJAS</h3>
+                                </div>
+                                <table cellpadding="0" cellspacing="0" width="100%">
+                                    <tr style="background-color: #f3f4f6;">
+                                        <th style="padding: 8px; font-size: 10px; text-align: left; color: #374151; font-weight: bold;">CUPS</th>
+                                        <th style="padding: 8px; font-size: 10px; text-align: left; color: #374151; font-weight: bold;">TARIFA</th>
+                                        <th style="padding: 8px; font-size: 10px; text-align: right; color: #374151; font-weight: bold;">AHORRO</th>
+                                    </tr>
+                                    ${resumenTablaFijoHtml}
+                                </table>
+                                <div style="background-color: ${RED_CTA}; color: white; padding: 15px; margin-top: 15px; border-radius: 8px; text-align: center;">
+                                    <p style="margin: 0 0 5px 0; font-size: 12px; font-weight: bold;">AHORRO TOTAL FIJAS:</p>
+                                    <p style="margin: 0; font-size: 24px; font-weight: bold;">${eur(ahorroFijo)}</p>
+                                </div>
+                            </td>
+                            
+                            <td style="width: 4%;"></td>
+                            
+                            <td style="width: 48%; vertical-align: top; padding: 20px;">
+                                <div style="background-color: ${HEADER_BLUE}; color: white; padding: 10px; border-radius: 8px; text-align: center; margin-bottom: 15px;">
+                                    <h3 style="margin: 0; font-size: 13px; font-weight: bold;">TARIFAS INDEXADAS</h3>
+                                </div>
+                                <table cellpadding="0" cellspacing="0" width="100%">
+                                    <tr style="background-color: #f3f4f6;">
+                                        <th style="padding: 8px; font-size: 10px; text-align: left; color: #374151; font-weight: bold;">CUPS</th>
+                                        <th style="padding: 8px; font-size: 10px; text-align: left; color: #374151; font-weight: bold;">TARIFA</th>
+                                        <th style="padding: 8px; font-size: 10px; text-align: right; color: #374151; font-weight: bold;">AHORRO</th>
+                                    </tr>
+                                    ${resumenTablaIndexadoHtml}
+                                </table>
+                                <div style="background-color: ${RED_CTA}; color: white; padding: 15px; margin-top: 15px; border-radius: 8px; text-align: center;">
+                                    <p style="margin: 0 0 5px 0; font-size: 12px; font-weight: bold;">AHORRO TOTAL INDEXADAS:</p>
+                                    <p style="margin: 0; font-size: 24px; font-weight: bold;">${eur(ahorroIndexado)}</p>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                    
+                    <div style="background-color: white; padding: 25px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.07);">
+                        <h3 style="margin: 0 0 20px 0; font-size: 18px; font-weight: bold; text-align: center; color: #1f2937;">CUAL ES LA DIFERENCIA?</h3>
+                        
+                        <table cellpadding="0" cellspacing="0" width="100%">
+                            <tr>
+                                <td style="width: 48%; vertical-align: top; padding-right: 15px;">
+                                    <h4 style="margin: 0 0 12px 0; font-size: 14px; font-weight: bold; color: ${DRK_BLUE};">POR QUE TARIFA FIJA?</h4>
+                                    <ul style="margin: 0; padding-left: 20px; font-size: 12px; line-height: 1.8; color: #374151;">
+                                        <li>Implica un precio fijo por los kilovatios que consumes (kWh).</li>
+                                        <li>El precio se mantiene estable, independientemente de cómo se comporten los precios en el mercado eléctrico.</li>
+                                        <li>Cuando el precio del mercado está alto, el cliente está protegido frente a sobresaltos.</li>
+                                        <li>No tendrás que estar pendiente de las variaciones del mercado y podrás seguir usando la electricidad como siempre.</li>
+                                    </ul>
+                                </td>
+                                <td style="width: 4%;"></td>
+                                <td style="width: 48%; vertical-align: top; padding-left: 15px;">
+                                    <h4 style="margin: 0 0 12px 0; font-size: 14px; font-weight: bold; color: ${GREEN_SAVE};">POR QUE TARIFA INDEXADA?</h4>
+                                    <ul style="margin: 0; padding-left: 20px; font-size: 12px; line-height: 1.8; color: #374151;">
+                                        <li>Implica un precio variable por los kilovatios que consumes (kWh) cada mes.</li>
+                                        <li>Es la tarifa más justa, ya que pagas el coste real de la energía mes a mes.</li>
+                                        <li>Al contratarla, el cliente evita pagar márgenes adicionales cuando el precio de la electricidad es más barato.</li>
+                                        <li>A largo plazo, con un indexado 100% funcional, se puede obtener un ahorro aproximado de hasta un 20% en épocas de mejor precio.</li>
+                                    </ul>
+                                </td>
+                            </tr>
+                        </table>
                     </div>
                     
-                    <!-- Datos del Cliente -->
-                    <div style="background-color: #f9fafb; padding: 15px 20px; margin: 20px; border-radius: 8px; border: 1px solid #e5e7eb;">
-                        <p style="margin: 0 0 8px 0; font-size: 13px; font-weight: bold; color: #374151;">
-                            CLIENTE: ${clientName}
-                        </p>
-                        <p style="margin: 0; font-size: 11px; color: #6b7280;">
-                            COMERCIAL: ${commercialCode}
-                        </p>
+                    <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; text-align: center;">
+                        <p style="margin: 0 0 5px 0; font-size: 11px; color: #6b7280;">Comercial: <strong>${commercialCode}</strong></p>
+                        <p style="margin: 0; font-size: 9px; color: #9ca3af;">Documento generado por ${brand.NAME.toUpperCase()}</p>
                     </div>
                     
                 </div>
