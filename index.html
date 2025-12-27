@@ -6329,39 +6329,43 @@
             return `
                 <div style="max-width: 900px; margin: 0 auto; font-family: Arial, sans-serif; background-color: #f8f9fa; padding: 20px;">
                     
-                    <!-- HEADER -->
-                    <table cellpadding="0" cellspacing="0" width="100%" style="background: linear-gradient(135deg, ${HEADER_BLUE} 0%, #8B9AA8 100%); border-radius: 16px 16px 0 0; margin-bottom: 0;">
-                        <tr>
-                            <td style="padding: 25px 30px;">
-                                <table cellpadding="0" cellspacing="0" width="100%">
-                                    <tr>
-                                        <td style="vertical-align: middle; width: 60%;">
-                                            <div style="background-color: white; width: 50px; height: 50px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 10px;">
-                                                <span style="font-size: 24px;">⚡</span>
-                                            </div>
-                                            <h1 style="color: white; font-size: 16px; margin: 0 0 5px 0; font-weight: normal; letter-spacing: 0.5px;">
-                                                ${brand.NAME.toUpperCase()}
-                                            </h1>
-                                            <p style="color: rgba(255,255,255,0.9); font-size: 11px; margin: 0;">Liderando el ahorro y la eficiencia energética.</p>
-                                        </td>
-                                        <td style="text-align: right; vertical-align: middle; width: 40%;">
-                                            <p style="color: rgba(255,255,255,0.7); font-size: 9px; margin: 0 0 5px 0; text-transform: uppercase; font-weight: bold;">ESTUDIO DE AHORRO</p>
-                                            <p style="color: white; font-size: 12px; margin: 0; font-weight: bold;">COMPARATIVA PROFESIONAL</p>
-                                        </td>
-                                    </tr>
-                                </table>
-                            </td>
-                        </tr>
-                    </table>
-                    
-                    <!-- INFO CLIENTE -->
-                    <div style="background-color: white; padding: 15px 30px; border-bottom: 2px solid #e5e7eb;">
-                        <p style="margin: 0; font-size: 12px; color: #374151;"><strong>CLIENTE:</strong> ${clientName}</p>
-                        <p style="margin: 5px 0 0 0; font-size: 11px; color: #6b7280;">CUPS TOTALES: 1</p>
-                    </div>
+                    <!-- HEADER ESTILO PDF -->
+                    ${isPowerCup ? `
+                        <!-- POWER CUP Header -->
+                        <div style="border: 3px solid #84cc16; background-color: white; padding: 25px 30px; border-radius: 8px; margin-bottom: 20px;">
+                            <table cellpadding="0" cellspacing="0" width="100%">
+                                <tr>
+                                    <td style="width: 50%; vertical-align: middle;">
+                                        <h1 style="color: #3f6212; font-size: 42px; font-weight: bold; margin: 0; letter-spacing: -1px;">POWER CUP</h1>
+                                        <p style="color: #65a30d; font-size: 16px; margin: 8px 0 0 0; font-weight: 600;">Asesoría Energética</p>
+                                    </td>
+                                    <td style="width: 50%; text-align: right; vertical-align: middle;">
+                                        <p style="color: #84cc16; font-size: 13px; margin: 0 0 5px 0; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">ESTUDIO DE AHORRO</p>
+                                        <p style="color: #3f6212; font-size: 18px; margin: 0; font-weight: bold;">COMPARATIVA PROFESIONAL</p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    ` : `
+                        <!-- DRK Header -->
+                        <div style="background-color: #2e5266; padding: 25px 30px; border-radius: 8px; margin-bottom: 20px;">
+                            <table cellpadding="0" cellspacing="0" width="100%">
+                                <tr>
+                                    <td style="width: 50%; vertical-align: middle;">
+                                        <h1 style="color: white; font-size: 42px; font-weight: bold; margin: 0; letter-spacing: -1px;">DRK ENERGÍA</h1>
+                                        <p style="color: rgba(255,255,255,0.9); font-size: 16px; margin: 8px 0 0 0;">Liderando el ahorro y la eficiencia energética.</p>
+                                    </td>
+                                    <td style="width: 50%; text-align: right; vertical-align: middle;">
+                                        <p style="color: rgba(255,255,255,0.8); font-size: 13px; margin: 0 0 5px 0; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">ESTUDIO DE AHORRO</p>
+                                        <p style="color: white; font-size: 18px; margin: 0; font-weight: bold;">COMPARATIVA PROFESIONAL</p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    `}
                     
                     <!-- CAJA PRINCIPAL -->
-                    <div style="background-color: white; padding: 30px; border-radius: 0 0 16px 16px; margin-bottom: 20px;">
+                    <div style="background-color: white; padding: 30px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
                         <div style="background-color: ${HEADER_BLUE}; color: white; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 25px;">
                             <p style="margin: 0 0 8px 0; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; opacity: 0.9;">LA MEJOR OPCIÓN PARA TI ES</p>
                             <h2 style="margin: 0; font-size: 32px; font-weight: bold;">${BRAND_DISPLAY}</h2>
