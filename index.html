@@ -6311,13 +6311,15 @@
             // DETECCIÓN DE POWER CUP para cambiar colores
             const isPowerCup = brand.NAME.includes('POWER');
             
-            // Colores dinámicos según la marca
+            // Colores dinámicos según la marca - TODO EN VERDE OLIVA PARA POWER CUP
             const HEADER_BLUE = isPowerCup ? '#738257' : '#6B7D8E';  // Verde oliva para PowerCup
             const DRK_BLUE = isPowerCup ? '#84cc16' : '#0ea5e9';     // Verde para PowerCup
             const GREEN_SAVE = '#16a34a';
             const RED_CTA = '#DC2626';
-            const SLATE_DARK = '#475569';
-            const SLATE_MED = '#64748b';
+            const SLATE_DARK = isPowerCup ? '#5a6b47' : '#475569';   // Verde oliva oscuro para PowerCup
+            const SLATE_MED = isPowerCup ? '#738257' : '#64748b';    // Verde oliva medio para PowerCup
+            
+            const BRAND_DISPLAY = isPowerCup ? 'POWER CUP' : 'DRK';  // Nombre a mostrar
             
             const clientName = document.getElementById('client-name-input').value.trim() || '[NOMBRE COMPLETO CLIENTE]';
             const clientPhone = document.getElementById('client-phone-input').value.trim() || '[TELÉFONO CLIENTE]';
@@ -6391,9 +6393,11 @@
                 const data = isIndexed ? supply.indexedComparison : supply;
                 if (!data || !data.powerCosts || !data.energyCosts) return '';
                 
+                // Usar el nombre correcto de la marca
+                const marcaNombre = isPowerCup ? 'POWER CUP' : 'DRK';
                 const nombreTarifa = isIndexed ? 
-                    `DRK INDEX - ${data.offer.name || 'DRK INDEX 4 2026'}` : 
-                    `DRK - ${data.offer.name || 'DRK FIJO 6 META 4'}`;
+                    `${marcaNombre} INDEX - ${data.offer.name || (isPowerCup ? 'POWER CUP INDEX 4 2026' : 'DRK INDEX 4 2026')}` : 
+                    `${marcaNombre} - ${data.offer.name || (isPowerCup ? 'POWER CUP FIJO 6 META 4' : 'DRK FIJO 6 META 4')}`;
                 
                 let htmlPotencia = '';
                 data.powerCosts.forEach((p, idx) => {
@@ -6521,7 +6525,7 @@
                 resumenTablaFijoHtml += `
                     <tr style="background-color: ${idx % 2 === 0 ? '#ffffff' : '#f9fafb'};">
                         <td style="padding: 8px; font-size: 11px; border-bottom: 1px solid #e5e7eb;">${supply.cups}</td>
-                        <td style="padding: 8px; font-size: 11px; border-bottom: 1px solid #e5e7eb;">DRK</td>
+                        <td style="padding: 8px; font-size: 11px; border-bottom: 1px solid #e5e7eb;">${BRAND_DISPLAY}</td>
                         <td style="padding: 8px; font-size: 12px; font-weight: bold; text-align: right; border-bottom: 1px solid #e5e7eb; color: ${GREEN_SAVE};">${eur(ahorroFijoSupply)}</td>
                     </tr>
                 `;
@@ -6529,7 +6533,7 @@
                 resumenTablaIndexadoHtml += `
                     <tr style="background-color: ${idx % 2 === 0 ? '#ffffff' : '#f9fafb'};">
                         <td style="padding: 8px; font-size: 11px; border-bottom: 1px solid #e5e7eb;">${supply.cups}</td>
-                        <td style="padding: 8px; font-size: 11px; border-bottom: 1px solid #e5e7eb;">DRK INDEX</td>
+                        <td style="padding: 8px; font-size: 11px; border-bottom: 1px solid #e5e7eb;">${BRAND_DISPLAY} INDEX</td>
                         <td style="padding: 8px; font-size: 12px; font-weight: bold; text-align: right; border-bottom: 1px solid #e5e7eb; color: ${GREEN_SAVE};">${eur(ahorroIndexadoSupply)}</td>
                     </tr>
                 `;
@@ -6571,8 +6575,8 @@
                     <div style="background-color: white; padding: 30px; border-radius: 0 0 16px 16px; margin-bottom: 20px;">
                         <div style="background-color: ${HEADER_BLUE}; color: white; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 25px;">
                             <p style="margin: 0 0 8px 0; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; opacity: 0.9;">LA MEJOR OPCIÓN PARA TI ES</p>
-                            <h2 style="margin: 0; font-size: 32px; font-weight: bold;">DRK</h2>
-                            <p style="margin: 8px 0 0 0; font-size: 12px; opacity: 0.95;">Ofrece el mayor ahorro consolidado con DRK ENERGÍA.</p>
+                            <h2 style="margin: 0; font-size: 32px; font-weight: bold;">${BRAND_DISPLAY}</h2>
+                            <p style="margin: 8px 0 0 0; font-size: 12px; opacity: 0.95;">Ofrece el mayor ahorro consolidado con ${brand.NAME.toUpperCase()}.</p>
                         </div>
                         
                         <table cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 20px;">
