@@ -6308,14 +6308,20 @@
             const num = (n, d=2) => new Intl.NumberFormat('es-ES', { minimumFractionDigits: d, maximumFractionDigits: d }).format(n || 0);
             const numPriceFormula = (n) => new Intl.NumberFormat('es-ES', { minimumFractionDigits: 6, maximumFractionDigits: 6 }).format(n || 0);
             
-            const HEADER_BLUE = '#6B7D8E';
-            const DRK_BLUE = '#0ea5e9';
+            // DETECCIÓN DE POWER CUP para cambiar colores
+            const isPowerCup = brand.NAME.includes('POWER');
+            
+            // Colores dinámicos según la marca
+            const HEADER_BLUE = isPowerCup ? '#738257' : '#6B7D8E';  // Verde oliva para PowerCup
+            const DRK_BLUE = isPowerCup ? '#84cc16' : '#0ea5e9';     // Verde para PowerCup
             const GREEN_SAVE = '#16a34a';
             const RED_CTA = '#DC2626';
             const SLATE_DARK = '#475569';
             const SLATE_MED = '#64748b';
             
             const clientName = document.getElementById('client-name-input').value.trim() || '[NOMBRE COMPLETO CLIENTE]';
+            const clientPhone = document.getElementById('client-phone-input').value.trim() || '[TELÉFONO CLIENTE]';
+            const clientEmail = document.getElementById('client-email-input').value.trim() || '[EMAIL CLIENTE]';
             
             const ahorroFijo = res.savings;
             const ahorroIndexado = res.indexedTotals ? res.indexedTotals.savings : 0;
@@ -6331,6 +6337,55 @@
                     nuevoCosteAnualIndexado += supply.indexedComparison.totalAnnual || 0;
                 }
             });
+            
+            // Generar emailBody para MULTICUPS
+            const LB = '%0A';
+            let cupsList = '';
+            res.individualResults.forEach((supply, idx) => {
+                cupsList += `   ${idx + 1}. ${supply.cups}${LB}`;
+            });
+            
+            const emailBody = `✅ CONFIRMACIÓN DE ACEPTACIÓN DE OFERTA MULTICUPS${LB}${LB}` +
+                             `Estimado equipo de ${brand.NAME.toUpperCase()},${LB}${LB}` +
+                             `Confirmo mi aceptación de la oferta energética consolidada que detallo a continuación:${LB}${LB}` +
+                             `════════════════════════════════════════${LB}` +
+                             `📋 DATOS DE LOS SUMINISTROS${LB}` +
+                             `════════════════════════════════════════${LB}${LB}` +
+                             `📊 Total de CUPS: ${res.cups}${LB}${LB}` +
+                             `🔌 CUPS incluidos:${LB}${cupsList}${LB}` +
+                             `⚡ MODALIDAD: FIJO vs INDEXADO${LB}${LB}` +
+                             `════════════════════════════════════════${LB}` +
+                             `💰 BENEFICIO ECONÓMICO${LB}` +
+                             `════════════════════════════════════════${LB}${LB}` +
+                             `💼 Ahorro Total con Tarifas FIJAS: ${eur(ahorroFijo)}${LB}` +
+                             `⚡ Ahorro Total con Tarifas INDEXADAS: ${eur(ahorroIndexado)}${LB}` +
+                             `📅 Nuevo Coste Anual FIJO: ${eur(nuevoCosteAnualFijo)}${LB}` +
+                             `📅 Nuevo Coste Anual INDEXADO: ${eur(nuevoCosteAnualIndexado)}${LB}${LB}` +
+                             `════════════════════════════════════════${LB}` +
+                             `👤 DATOS DEL TITULAR${LB}` +
+                             `════════════════════════════════════════${LB}${LB}` +
+                             `📛 Nombre completo: ${clientName}${LB}` +
+                             `📱 Teléfono: ${clientPhone}${LB}` +
+                             `📧 Email: ${clientEmail}${LB}${LB}` +
+                             `════════════════════════════════════════${LB}` +
+                             `📎 DOCUMENTACIÓN ADJUNTA (Por cada CUPS)${LB}` +
+                             `════════════════════════════════════════${LB}${LB}` +
+                             `Adjunto la siguiente documentación para formalizar los ${res.cups} contratos:${LB}${LB}` +
+                             `✓ DNI/CIF (anverso y reverso)${LB}` +
+                             `✓ Última factura · Email · Teléfono · IBAN${LB}${LB}` +
+                             `════════════════════════════════════════${LB}` +
+                             `💬 COMENTARIOS ADICIONALES${LB}` +
+                             `════════════════════════════════════════${LB}${LB}` +
+                             `[Escriba aquí cualquier observación o consulta adicional]${LB}${LB}` +
+                             `════════════════════════════════════════${LB}${LB}` +
+                             `Quedo a la espera de la confirmación de la formalización de los contratos.${LB}${LB}` +
+                             `Atentamente,${LB}` +
+                             `${clientName}${LB}${LB}` +
+                             `Comercial: ${commercialCode}`;
+            
+            const subject = `✅ FORMALIZACIÓN MULTICUPS - ${res.cups} CUPS - ${brand.NAME.toUpperCase()}`;
+            const formalizationRecipients = 'f.araujo@drk.es,r.guerra@drk.es,s.caballero@drk.es';
+            const formalizationLink = `mailto:${formalizationRecipients}?subject=${encodeURIComponent(subject)}&body=${emailBody}`;
             
             function generarColumnaDesglosePro(supply, isIndexed) {
                 const data = isIndexed ? supply.indexedComparison : supply;
@@ -6648,6 +6703,38 @@
                                 </td>
                             </tr>
                         </table>
+                    </div>
+                    
+                    <!-- BOTÓN DE CONFIRMACIÓN POR EMAIL -->
+                    <div style="background-color: white; padding: 25px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.07); border: 3px solid ${isPowerCup ? '#84cc16' : '#0ea5e9'};">
+                        <div style="text-align: center;">
+                            <div style="margin-bottom: 15px;">
+                                <span style="font-size: 20px; margin-right: 8px;">📊</span>
+                                <span style="font-size: 16px; font-weight: bold; color: ${isPowerCup ? '#3f6212' : '#0c4a6e'};">
+                                    Para formalizar esta oferta consolidada:
+                                </span>
+                            </div>
+                            
+                            <ol style="margin: 20px 0; padding-left: 20px; text-align: left; max-width: 500px; margin-left: auto; margin-right: auto; font-size: 14px; color: #374151; line-height: 2;">
+                                <li>Haz clic en el botón de abajo</li>
+                                <li>Se abrirá tu cliente de email</li>
+                                <li><strong style="color: ${isPowerCup ? '#3f6212' : '#0c4a6e'};">Adjunta documentación de los ${res.cups} CUPS</strong></li>
+                                <li>Envía el email</li>
+                            </ol>
+                            
+                            <a href="${formalizationLink}" style="display: inline-block; background-color: ${RED_CTA}; color: white; padding: 18px 40px; border-radius: 12px; text-decoration: none; font-size: 16px; font-weight: bold; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3); margin: 20px 0;">
+                                ✅ CONFIRMAR OFERTA CONSOLIDADA
+                            </a>
+                            
+                            <div style="margin-top: 20px; padding: 15px; background-color: #f3f4f6; border-radius: 8px;">
+                                <p style="margin: 0 0 8px 0; font-size: 12px; color: #6b7280;">
+                                    <strong>📎 Por cada CUPS adjuntar:</strong>
+                                </p>
+                                <p style="margin: 0; font-size: 11px; color: #6b7280;">
+                                    DNI/CIF · Última factura · Email · Teléfono · IBAN
+                                </p>
+                            </div>
+                        </div>
                     </div>
                     
                     <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; text-align: center;">
